@@ -32,12 +32,6 @@ android {
     }
 }
 
-repositories {
-    google()
-    mavenCentral()
-    maven { url = uri("https://jitpack.io") }
-}
-
 dependencies {
     implementation("com.github.supabase:supabase-kt:2.6.0")
     implementation("io.ktor:ktor-client-android:2.3.10")
