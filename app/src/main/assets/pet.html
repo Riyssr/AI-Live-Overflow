@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin: 0; padding: 0; }
+body {
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+}
+.pet {
+  width: 120px;
+  height: 120px;
+  transition: transform 0.3s ease;
+}
+.pet.poked { transform: scale(1.15); }
+.pet.angry { animation: shake 0.4s ease; }
+</style>
+</head>
+<body>
+<svg class="pet" viewBox="0 0 120 120">
+  <defs>
+    <radialGradient id="bodyGrad" cx="40%" cy="35%">
+      <stop offset="0%" stop-color="#e8d5ff"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </radialGradient>
+  </defs>
+  <circle cx="60" cy="60" r="50" fill="url(#bodyGrad)" />
+  <circle cx="60" cy="60" r="50" fill="none" stroke="#6d28d9" stroke-width="1.5" opacity="0.3"/>
+  <!-- 眼睛 -->
+  <circle cx="44" cy="52" r="6" fill="#f0e8ff" opacity="0.9"/>
+  <circle cx="76" cy="52" r="6" fill="#f0e8ff" opacity="0.9"/>
+  <circle cx="44" cy="52" r="3" fill="#3b0764"/>
+  <circle cx="76" cy="52" r="3" fill="#3b0764"/>
+  <!-- 嘴 -->
+  <path d="M52 72 Q60 80 68 72" fill="none" stroke="#3b0764" stroke-width="2" stroke-linecap="round"/>
+  <!-- 腮红 -->
+  <circle cx="34" cy="66" r="5" fill="#f472b6" opacity="0.5"/>
+  <circle cx="86" cy="66" r="5" fill="#f472b6" opacity="0.5"/>
+</svg>
+
+<script>
+window.petEngine = {
+  onGesture: function(type) {
+    var pet = document.querySelector('.pet');
+    if (type === 'tap') {
+      pet.classList.add('poked');
+      setTimeout(function(){ pet.classList.remove('poked'); }, 300);
+    } else if (type === 'double_tap') {
+      pet.classList.add('angry');
+      setTimeout(function(){ pet.classList.remove('angry'); }, 400);
+    }
+  },
+  setState: function(state) {
+    if (state.bubble) {
+      // TODO: 气泡显示
+    }
+  }
+};
+</script>
+</body>
+</html>
