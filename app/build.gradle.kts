@@ -33,8 +33,7 @@ android {
 }
 
 dependencies {
-    implementation("com.github.supabase:supabase-kt:2.6.0")
-    implementation("io.ktor:ktor-client-android:2.3.10")
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.webkit:webkit:1.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
