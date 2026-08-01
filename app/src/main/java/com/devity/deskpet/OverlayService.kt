@@ -15,9 +15,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebSettings
 import androidx.core.app.NotificationCompat
-import io.supabase.SupabaseClient
-import io.supabase.createSupabaseClient
-import io.supabase.postgrest.Postgrest
 import kotlinx.coroutines.*
 
 class OverlayService : Service() {
@@ -25,9 +22,7 @@ class OverlayService : Service() {
     private var windowManager: WindowManager? = null
     private var overlayView: WebView? = null
     private var params: WindowManager.LayoutParams? = null
-    private lateinit var supabase: SupabaseClient
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var pollingJob: Job? = null
 
     companion object {
         private const val CHANNEL_ID = "devity_pet"
@@ -35,7 +30,7 @@ class OverlayService : Service() {
         private const val PET_WIDTH_DP = 180
         private const val PET_HEIGHT_DP = 240
 
-        // Supabase 配置 — 构建时替换
+        // Supabase 配置 — 构建时替换（暂时占位，待 Supabase SDK 接入后启用）
         const val SUPABASE_URL = "https://wdzdbyxamlufrjjlhubw.supabase.co"
         const val SUPABASE_KEY = "sb_publishable_O2g0ln3CzT702uIBRfLB7w_smK9vIod"
     }
@@ -44,17 +39,10 @@ class OverlayService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        initSupabase()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification("Devity 在你身边 👾"))
         setupOverlay()
-        startPolling()
-    }
-
-    private fun initSupabase() {
-        supabase = createSupabaseClient(SUPABASE_URL, SUPABASE_KEY) {
-            install(Postgrest)
-        }
+        // startPolling()  // TODO: Supabase SDK 接入后启用
     }
 
     private fun setupOverlay() {
@@ -129,11 +117,11 @@ class OverlayService : Service() {
                     val elapsed = System.currentTimeMillis() - touchStartTime
                     if (!hasMoved) {
                         when {
-                            elapsed > 600 -> sendGesture("long_press")
-                            System.currentTimeMillis() - lastTapTime < 300 -> sendGesture("double_tap")
+                            elapsed > 600 -> onLongPress()
+                            System.currentTimeMillis() - lastTapTime < 300 -> onDoubleTap()
                             else -> {
                                 lastTapTime = System.currentTimeMillis()
-                                sendGesture("tap")
+                                onTap()
                             }
                         }
                     }
@@ -144,55 +132,22 @@ class OverlayService : Service() {
         }
     }
 
-    private fun sendGesture(type: String) {
+    private fun onTap() {
         overlayView?.evaluateJavascript(
-            "window.petEngine && window.petEngine.onGesture('$type')", null
+            "window.petEngine && window.petEngine.onGesture('tap')", null
         )
-        // 异步上报到 Supabase
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                supabase.postgrest["gesture_logs"].insert(mapOf(
-                    "type" to type,
-                    "timestamp" to System.currentTimeMillis()
-                ))
-            } catch (_: Exception) {}
-        }
     }
 
-    // === Supabase 状态轮询 ===
-
-    private fun startPolling() {
-        pollingJob = CoroutineScope(Dispatchers.IO).launch {
-            while (isActive) {
-                delay(5000)
-                try {
-                    val result = supabase.postgrest["pet_state"]
-                        .select()
-                        .order("id", Postgrest.Order.DESCENDING)
-                        .limit(1)
-                    val state = result.decodeAs<List<PetState>>()
-                    if (state.isNotEmpty()) {
-                        mainHandler.post {
-                            applyState(state[0])
-                        }
-                    }
-                } catch (_: Exception) {
-                    // 静默失败，下次重试
-                }
-            }
-        }
+    private fun onDoubleTap() {
+        overlayView?.evaluateJavascript(
+            "window.petEngine && window.petEngine.onGesture('double_tap')", null
+        )
     }
 
-    private fun applyState(state: PetState) {
-        val js = buildString {
-            append("window.petEngine && window.petEngine.setState({")
-            state.expression?.let { append("expression:'$it',") }
-            state.bubble?.let { append("bubble:'$it',") }
-            state.heat?.let { append("heat:$it,") }
-            state.animation?.let { append("animation:'$it'") }
-            append("})")
-        }
-        overlayView?.evaluateJavascript(js, null)
+    private fun onLongPress() {
+        overlayView?.evaluateJavascript(
+            "window.petEngine && window.petEngine.onGesture('long_press')", null
+        )
     }
 
     // === 通知 ===
@@ -235,7 +190,6 @@ class OverlayService : Service() {
     }
 
     override fun onDestroy() {
-        pollingJob?.cancel()
         overlayView?.let {
             windowManager?.removeView(it)
             it.destroy()
@@ -244,10 +198,3 @@ class OverlayService : Service() {
         super.onDestroy()
     }
 }
-
-data class PetState(
-    val expression: String? = null,
-    val bubble: String? = null,
-    val heat: Int? = null,
-    val animation: String? = null
-)
