@@ -15,10 +15,10 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebSettings
 import androidx.core.app.NotificationCompat
-import io.github.jan_tennert.supabase.SupabaseClient
-import io.github.jan_tennert.supabase.createSupabaseClient
-import io.github.jan_tennert.supabase.postgrest.Postgrest
-import io.github.jan_tennert.supabase.postgrest.from
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -56,7 +56,7 @@ class OverlayService : Service() {
     private fun initSupabase() {
         supabase = createSupabaseClient(SUPABASE_URL, SUPABASE_KEY) {
             install(Postgrest)
-            defaultSerializer = io.github.jan_tennert.supabase.serializer.KotlinXSerializer(
+            defaultSerializer = io.github.jan.supabase.serializer.KotlinXSerializer(
                 Json { ignoreUnknownKeys = true }
             )
         }
