@@ -19,6 +19,7 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -186,9 +187,10 @@ class OverlayService : Service() {
                 delay(5000)
                 try {
                     val result = supabase.from("pet_state")
-                        .select()
-                        .order("id", Postgrest.Order.DESCENDING)
-                        .limit(1)
+                        .select {
+                            order("id", Order.DESCENDING)
+                            limit(1L)
+                        }
                     val rows = result.decodeAs<List<PetState>>()
                     if (rows.isNotEmpty()) {
                         mainHandler.post { applyState(rows[0]) }
