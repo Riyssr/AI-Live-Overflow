@@ -35,6 +35,14 @@ kotlin {
     }
 }
 
+// supabase auth-kt-android 3.7.0 pulls in androidx.browser 1.10.0 which requires
+// compileSdk 36 / AGP 8.9.1+. The app does not use Custom Tabs, so force 1.8.0.
+configurations.all {
+    resolutionStrategy {
+        force("androidx.browser:browser:1.8.0")
+    }
+}
+
 dependencies {
     implementation(platform("io.github.jan-tennert.supabase:bom:3.7.0"))
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
@@ -44,6 +52,4 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.webkit:webkit:1.9.0")
-    // Pin transitive dependency: supabase pulls in androidx.browser 1.10.0 which requires compileSdk 36 / AGP 8.9.1+
-    implementation("androidx.browser:browser:1.8.0")
 }
