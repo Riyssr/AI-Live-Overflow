@@ -44,4 +44,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.webkit:webkit:1.9.0")
+    // Pin transitive dependency: supabase pulls in androidx.browser 1.10.0 which requires compileSdk 36 / AGP 8.9.1+
+    implementation("androidx.browser:browser:1.8.0")
 }
