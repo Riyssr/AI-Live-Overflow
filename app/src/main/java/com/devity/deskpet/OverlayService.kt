@@ -36,14 +36,22 @@ class OverlayService : Service() {
     companion object {
         private const val CHANNEL_ID = "devity_pet"
         private const val NOTIFICATION_ID = 1001
-        private const val PET_WIDTH_DP = 180
-        private const val PET_HEIGHT_DP = 240
+        private const val PET_WIDTH_DP = 110
+        private const val PET_HEIGHT_DP = 130
 
         const val SUPABASE_URL = "https://wdzdbyxamlufrjjlhubw.supabase.co"
         const val SUPABASE_KEY = "sb_publishable_O2g0ln3CzT702uIBRfLB7w_smK9vIod"
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.getBooleanExtra("action_close", false) == true) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        return START_STICKY
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -165,10 +173,8 @@ class OverlayService : Service() {
     }
 
     private fun onLongPress() {
-        overlayView?.evaluateJavascript(
-            "window.petEngine && window.petEngine.onGesture('long_press')", null
-        )
         logGesture("long_press")
+        stopSelf()
     }
 
     private fun logGesture(type: String) {
@@ -220,6 +226,11 @@ class OverlayService : Service() {
             packageManager.getLaunchIntentForPackage(packageName),
             PendingIntent.FLAG_IMMUTABLE
         )
+        val closeIntent = PendingIntent.getService(
+            this, 1,
+            Intent(this, OverlayService::class.java).putExtra("action_close", true),
+            PendingIntent.FLAG_IMMUTABLE
+        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Devity")
             .setContentText(text)
@@ -227,6 +238,7 @@ class OverlayService : Service() {
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setSilent(true)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "关闭桌宠", closeIntent)
             .build()
     }
 
