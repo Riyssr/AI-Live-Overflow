@@ -15,14 +15,22 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebSettings
 import androidx.core.app.NotificationCompat
+import io.github.jan_tennert.supabase.SupabaseClient
+import io.github.jan_tennert.supabase.createSupabaseClient
+import io.github.jan_tennert.supabase.postgrest.Postgrest
+import io.github.jan_tennert.supabase.postgrest.from
 import kotlinx.coroutines.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 class OverlayService : Service() {
 
     private var windowManager: WindowManager? = null
     private var overlayView: WebView? = null
     private var params: WindowManager.LayoutParams? = null
+    private lateinit var supabase: SupabaseClient
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var pollingJob: Job? = null
 
     companion object {
         private const val CHANNEL_ID = "devity_pet"
@@ -30,7 +38,6 @@ class OverlayService : Service() {
         private const val PET_WIDTH_DP = 180
         private const val PET_HEIGHT_DP = 240
 
-        // Supabase 配置 — 构建时替换（暂时占位，待 Supabase SDK 接入后启用）
         const val SUPABASE_URL = "https://wdzdbyxamlufrjjlhubw.supabase.co"
         const val SUPABASE_KEY = "sb_publishable_O2g0ln3CzT702uIBRfLB7w_smK9vIod"
     }
@@ -39,10 +46,20 @@ class OverlayService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        initSupabase()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification("Devity 在你身边 👾"))
         setupOverlay()
-        // startPolling()  // TODO: Supabase SDK 接入后启用
+        startPolling()
+    }
+
+    private fun initSupabase() {
+        supabase = createSupabaseClient(SUPABASE_URL, SUPABASE_KEY) {
+            install(Postgrest)
+            defaultSerializer = io.github.jan_tennert.supabase.serializer.KotlinXSerializer(
+                Json { ignoreUnknownKeys = true }
+            )
+        }
     }
 
     private fun setupOverlay() {
@@ -136,18 +153,61 @@ class OverlayService : Service() {
         overlayView?.evaluateJavascript(
             "window.petEngine && window.petEngine.onGesture('tap')", null
         )
+        logGesture("tap")
     }
 
     private fun onDoubleTap() {
         overlayView?.evaluateJavascript(
             "window.petEngine && window.petEngine.onGesture('double_tap')", null
         )
+        logGesture("double_tap")
     }
 
     private fun onLongPress() {
         overlayView?.evaluateJavascript(
             "window.petEngine && window.petEngine.onGesture('long_press')", null
         )
+        logGesture("long_press")
+    }
+
+    private fun logGesture(type: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                supabase.from("gesture_logs").insert(GestureLog(type, System.currentTimeMillis()))
+            } catch (_: Exception) {}
+        }
+    }
+
+    // === Supabase 状态轮询 ===
+
+    private fun startPolling() {
+        pollingJob = CoroutineScope(Dispatchers.IO).launch {
+            while (isActive) {
+                delay(5000)
+                try {
+                    val result = supabase.from("pet_state")
+                        .select()
+                        .order("id", Postgrest.Order.DESCENDING)
+                        .limit(1)
+                    val rows = result.decodeAs<List<PetState>>()
+                    if (rows.isNotEmpty()) {
+                        mainHandler.post { applyState(rows[0]) }
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    private fun applyState(state: PetState) {
+        val js = buildString {
+            append("window.petEngine && window.petEngine.setState({")
+            state.expression?.let { append("expression:'$it',") }
+            state.bubble?.let { append("bubble:'$it',") }
+            state.heat?.let { append("heat:$it,") }
+            state.animation?.let { append("animation:'$it'") }
+            append("})")
+        }
+        overlayView?.evaluateJavascript(js, null)
     }
 
     // === 通知 ===
@@ -190,6 +250,7 @@ class OverlayService : Service() {
     }
 
     override fun onDestroy() {
+        pollingJob?.cancel()
         overlayView?.let {
             windowManager?.removeView(it)
             it.destroy()
@@ -198,3 +259,17 @@ class OverlayService : Service() {
         super.onDestroy()
     }
 }
+
+@Serializable
+data class GestureLog(
+    val type: String,
+    val timestamp: Long
+)
+
+@Serializable
+data class PetState(
+    val expression: String? = null,
+    val bubble: String? = null,
+    val heat: Int? = null,
+    val animation: String? = null
+)
